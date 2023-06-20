@@ -14,8 +14,11 @@ contract Raffle is VRFConsumerBaseV2 {
     error Raffle__NotEnoughTimeHasPassed();
     error Raffle__TransferFailed();
     error Raffle__RaffleNotOpen();
+    error Raffle__UpkeepNotNeeded(uint256 currentBalance, uint256 numPlayers, uint256 raffleState);
 
-    /** Type Declarations */
+    /**
+     * Type Declarations
+     */
     enum RaffleState {
         OPEN, // 0
         CALCULATING // 1
@@ -68,7 +71,7 @@ contract Raffle is VRFConsumerBaseV2 {
             revert Raffle__NotEnoughETH();
         }
 
-        if(s_raffleState != RaffleState.OPEN) {
+        if (s_raffleState != RaffleState.OPEN) {
             revert Raffle__RaffleNotOpen();
         }
 
@@ -76,16 +79,38 @@ contract Raffle is VRFConsumerBaseV2 {
         emit EnteredRaffle(msg.sender);
     }
 
-    function pickWinner() external {
+    // When is the winner supposed to be picked
+    /**
+     * @dev This is the function that Chainlink Automation nodes call to see if it's time to perform an upkeep
+     */
+    function checkUpkeep(bytes memory /*performData*/ )
+        public
+        view
+        returns (bool upkeepNeeded, bytes memory /*performData*/ )
+    {
         // Check to see if enough time has passed
-        if ((block.timestamp - s_lastTimeStamp) < i_interval) {
-            revert Raffle__NotEnoughTimeHasPassed();
+        bool timeHasPassed = (block.timestamp - s_lastTimeStamp) >= i_interval;
+        bool isOpen = RaffleState.OPEN == s_raffleState;
+        bool hasBalance = address(this).balance > 0;
+        bool hasPlayers = s_players.length > 0;
+        upkeepNeeded = (timeHasPassed && isOpen && hasBalance && hasPlayers);
+
+        return (upkeepNeeded, "0x0");
+    }
+
+    function performUpkeep(bytes calldata /* performData */ ) external {
+        // Check upkeep to see if it is time to perform upkeep
+        (bool upkeepNeeded,) = checkUpkeep("");
+
+        // If upkeep is not needed, revert
+        if (!upkeepNeeded) {
+            revert Raffle__UpkeepNotNeeded(address(this).balance, s_players.length, uint256(s_raffleState));
         }
 
         s_raffleState = RaffleState.CALCULATING;
 
         // Get a random number
-        uint256 requestId = i_vrfCoordinator.requestRandomWords(
+        i_vrfCoordinator.requestRandomWords(
             i_gasLane, i_subscriptionId, REQUEST_CONFIRMATIONS, i_callbackGasLimit, NUMBER_OF_WORDS
         );
 
