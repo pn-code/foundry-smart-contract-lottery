@@ -13,6 +13,13 @@ contract Raffle is VRFConsumerBaseV2 {
     error Raffle__NotEnoughETH();
     error Raffle__NotEnoughTimeHasPassed();
     error Raffle__TransferFailed();
+    error Raffle__RaffleNotOpen();
+
+    /** Type Declarations */
+    enum RaffleState {
+        OPEN, // 0
+        CALCULATING // 1
+    }
 
     /**
      * State Variables
@@ -30,11 +37,13 @@ contract Raffle is VRFConsumerBaseV2 {
     address payable[] private s_players;
     address private s_recentWinner;
     uint256 private s_lastTimeStamp;
+    RaffleState private s_raffleState;
 
     /**
      * Events
      */
     event EnteredRaffle(address indexed player);
+    event PickedWinner(address indexed winner);
 
     constructor(
         uint256 entranceFee,
@@ -51,12 +60,18 @@ contract Raffle is VRFConsumerBaseV2 {
         i_subscriptionId = subscriptionId;
         i_callbackGasLimit = callbackGasLimit;
         s_lastTimeStamp = block.timestamp;
+        s_raffleState = RaffleState.OPEN;
     }
 
     function enterRaffle() external payable {
         if (msg.value < i_entranceFee) {
             revert Raffle__NotEnoughETH();
         }
+
+        if(s_raffleState != RaffleState.OPEN) {
+            revert Raffle__RaffleNotOpen();
+        }
+
         s_players.push(payable(msg.sender));
         emit EnteredRaffle(msg.sender);
     }
@@ -67,18 +82,38 @@ contract Raffle is VRFConsumerBaseV2 {
             revert Raffle__NotEnoughTimeHasPassed();
         }
 
-        // 1. Get a random number
+        s_raffleState = RaffleState.CALCULATING;
+
+        // Get a random number
         uint256 requestId = i_vrfCoordinator.requestRandomWords(
             i_gasLane, i_subscriptionId, REQUEST_CONFIRMATIONS, i_callbackGasLimit, NUMBER_OF_WORDS
         );
 
-        // 2. Use the random number to pick a player
+        // Use the random number to pick a player
     }
 
+    // CEI: Checks, Effects, Interactions
     function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override {
+        // Check
+
+        // Effects (Our Own Contract)
+
+        // Selecting winner with VRF
         uint256 indexOfWinner = randomWords[0] % s_players.length;
         address payable winner = s_players[indexOfWinner];
         s_recentWinner = winner;
+        s_raffleState = RaffleState.OPEN;
+
+        // Clearing current players to start a new game
+        s_players = new address payable[](0);
+        s_lastTimeStamp = block.timestamp;
+
+        // Emitting an event
+        emit PickedWinner(winner);
+
+        // Interactions (Other Contracts)
+
+        // Sending payment to the winner
         (bool success,) = winner.call{value: address(this).balance}("");
         if (!success) {
             revert Raffle__TransferFailed();
