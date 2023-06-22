@@ -6,7 +6,7 @@ import {Raffle} from "../src/Raffle.sol";
 import {HelperConfig} from "./HelperConfig.s.sol";
 
 contract DeployRaffle is Script {
-    function run() external returns (Raffle) {
+    function run() external returns (Raffle, HelperConfig) {
         HelperConfig helperConfig = new HelperConfig();
 
         // Deconstructing properties from our active config...
@@ -23,6 +23,6 @@ contract DeployRaffle is Script {
         Raffle raffle = new Raffle(entranceFee, interval, vrfCoordinator, gasLane, subscriptionId, callbackGasLimit);
         vm.stopBroadcast();
 
-        return raffle;
+        return (raffle, helperConfig);
     }
 }
