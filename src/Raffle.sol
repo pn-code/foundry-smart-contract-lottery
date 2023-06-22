@@ -118,7 +118,7 @@ contract Raffle is VRFConsumerBaseV2 {
     }
 
     // CEI: Checks, Effects, Interactions
-    function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override {
+    function fulfillRandomWords(uint256, /* requestId */ uint256[] memory randomWords) internal override {
         // Check
 
         // Effects (Our Own Contract)
