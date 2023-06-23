@@ -21,8 +21,8 @@ contract RaffleTest is Test {
     uint256 public constant STARTING_USER_BALANCE = 10 ether;
 
     /**
-    * Events
-    */
+     * Events
+     */
     event EnteredRaffle(address indexed player);
     event PickedWinner(address indexed winner);
 
@@ -64,6 +64,27 @@ contract RaffleTest is Test {
         vm.expectEmit(true, false, false, false, address(raffle));
 
         emit EnteredRaffle(PLAYER);
+        raffle.enterRaffle{value: entranceFee}();
+    }
+
+    function testCannotEnterWhenRaffleIsCalculating() public {
+        vm.prank(PLAYER);
+        raffle.enterRaffle{value: entranceFee}();
+
+        // Move time forward
+        vm.warp(block.timestamp + interval + 1);
+
+        // Set block number
+        vm.roll(block.number + 1);
+
+        // At this point, we should be in a calculating state...
+
+        // Perform Upkeep
+        raffle.performUpkeep("");
+
+        // Test for revert
+        vm.prank(PLAYER);
+        vm.expectRevert(Raffle.Raffle__RaffleNotOpen.selector);
         raffle.enterRaffle{value: entranceFee}();
     }
 }
