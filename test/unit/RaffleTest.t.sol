@@ -42,6 +42,18 @@ contract RaffleTest is Test {
         assert(raffle.getRaffleState() == Raffle.RaffleState.OPEN);
     }
 
+    modifier playerEntersRaffle() {
+        vm.prank(PLAYER);
+        raffle.enterRaffle{value: entranceFee}();
+        _;
+    }
+
+    modifier timeWarps() {
+        vm.warp(block.timestamp + interval + 1);
+        vm.roll(block.number + 1);
+        _;
+    }
+
     /**
      * enterRaffle
      */
@@ -53,9 +65,7 @@ contract RaffleTest is Test {
         raffle.enterRaffle();
     }
 
-    function testRaffleRecordsPlayerWhenTheyEnter() public {
-        vm.prank(PLAYER);
-        raffle.enterRaffle{value: entranceFee}();
+    function testRaffleRecordsPlayerWhenTheyEnter() public playerEntersRaffle {
         address playerRecorded = raffle.getPlayer(0);
         assertEq(playerRecorded, PLAYER);
     }
@@ -68,19 +78,8 @@ contract RaffleTest is Test {
         raffle.enterRaffle{value: entranceFee}();
     }
 
-    function testCannotEnterWhenRaffleIsCalculating() public {
-        vm.prank(PLAYER);
-        raffle.enterRaffle{value: entranceFee}();
-
-        // Move time forward
-        vm.warp(block.timestamp + interval + 1);
-
-        // Set block number
-        vm.roll(block.number + 1);
-
-        // At this point, we should be in a calculating state...
-
-        // Perform Upkeep
+    function testCannotEnterWhenRaffleIsCalculating() public playerEntersRaffle timeWarps {
+        // performUpkeep puts the raffle in a calculating state
         raffle.performUpkeep("");
 
         // Test for revert
@@ -93,14 +92,7 @@ contract RaffleTest is Test {
      * checkUpkeep
      */
 
-    function testCheckUpkeepReturnsFalseIfItHasNoBalance() public {
-        // Arrange
-
-        // Move time forward
-        vm.warp(block.timestamp + interval + 1);
-        // Set block number
-        vm.roll(block.number + 1);
-
+    function testCheckUpkeepReturnsFalseIfItHasNoBalance() public timeWarps {
         // Act
         (bool upkeepNeeded,) = raffle.checkUpkeep("");
 
@@ -108,13 +100,7 @@ contract RaffleTest is Test {
         assert(!upkeepNeeded);
     }
 
-    function testCheckUpkeepReturnsFalseIfRaffleNotOpen() public {
-        // Arrange
-        vm.prank(PLAYER);
-        raffle.enterRaffle{value: entranceFee}();
-        vm.warp(block.timestamp + interval + 1);
-        vm.roll(block.number + 1);
-
+    function testCheckUpkeepReturnsFalseIfRaffleNotOpen() public playerEntersRaffle timeWarps {
         // performUpkeep puts the raffle in a calculating state
         raffle.performUpkeep("");
 
@@ -125,14 +111,7 @@ contract RaffleTest is Test {
         assert(!upkeepNeeded);
     }
 
-    function testCheckUpkeepReturnsFalseIfEnoughTimeHasNotPassed() public {
-        // Arrange
-        vm.prank(PLAYER);
-        raffle.enterRaffle{value: entranceFee}();
-
-        // Here we do not warp the time, so we can test if no time has passed
-        vm.roll(block.number + 1);
-
+    function testCheckUpkeepReturnsFalseIfEnoughTimeHasNotPassed() public playerEntersRaffle {
         // Act
         (bool upkeepNeeded,) = raffle.checkUpkeep("");
 
@@ -140,19 +119,7 @@ contract RaffleTest is Test {
         assert(!upkeepNeeded);
     }
 
-    function testCheckUpkeepReturnsTrueWhenParametersAreGood() public {
-        // Arrange
-
-        // Player enters the raffle correctly + balance is added to raffle
-        vm.prank(PLAYER);
-        raffle.enterRaffle{value: entranceFee}();
-
-        // Time requirement is met
-        vm.warp(block.timestamp + interval + 1);
-        vm.roll(block.number + 1);
-
-        // Raffle state is open by default
-
+    function testCheckUpkeepReturnsTrueWhenParametersAreGood() public playerEntersRaffle timeWarps {
         // Act
         (bool upkeepNeeded,) = raffle.checkUpkeep("");
 
