@@ -5,6 +5,7 @@ import {DeployRaffle} from "../../script/DeployRaffle.s.sol";
 import {Raffle} from "../../src/Raffle.sol";
 import {Test, console} from "forge-std/Test.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
+import {Vm} from "forge-std/Vm.sol";
 
 contract RaffleTest is Test {
     Raffle raffle;
@@ -125,5 +126,43 @@ contract RaffleTest is Test {
 
         // Assert
         assert(upkeepNeeded);
+    }
+
+    /**
+     * performUpkeep
+     */
+    function testPerformUpkeepCanOnlyRunIfCheckUpkeepIsTrue() public playerEntersRaffle timeWarps {
+        // Act/Assert
+        raffle.checkUpkeep("");
+    }
+
+    function testPerformUpkeepRevertsIfCheckUpkeepIsFalse() public {
+        // Arrange
+        uint256 currentBalance = 0;
+        uint256 numPlayers = 0;
+        uint256 raffleState = 0;
+
+        // Act/Assert
+        vm.expectRevert(
+            abi.encodeWithSelector(Raffle.Raffle__UpkeepNotNeeded.selector, currentBalance, numPlayers, raffleState)
+        );
+
+        raffle.performUpkeep("");
+    }
+
+    function testPerformUpkeepUpdatesRaffleStateAndEmitsRequestId() public playerEntersRaffle timeWarps {
+        // Act
+        vm.recordLogs(); // Automatically save all event emits
+        raffle.performUpkeep(""); // emit requestId
+        Vm.Log[] memory entries = vm.getRecordedLogs(); // get all logs
+
+        // [0] topic refers to the entire event, while [1] refers to 1st parameter
+        bytes32 requestId = entries[1].topics[1];
+
+        Raffle.RaffleState raffleState = raffle.getRaffleState();
+
+        // Assert
+        assert(uint256(requestId) > 0); // If event is emitted, requestId should not be 0
+        assert(uint256(raffleState) == 1);
     }
 }
