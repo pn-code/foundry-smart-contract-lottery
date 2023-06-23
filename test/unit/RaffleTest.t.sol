@@ -16,6 +16,7 @@ contract RaffleTest is Test {
     bytes32 gasLane;
     uint64 subscriptionId;
     uint32 callbackGasLimit;
+    address link;
 
     address public PLAYER = address(1);
     uint256 public constant STARTING_USER_BALANCE = 10 ether;
@@ -31,7 +32,7 @@ contract RaffleTest is Test {
         (raffle, helperConfig) = deployer.run();
 
         // Deconstructing properties from our active config...
-        (entranceFee, interval, vrfCoordinator, gasLane, subscriptionId, callbackGasLimit) =
+        (entranceFee, interval, vrfCoordinator, gasLane, subscriptionId, callbackGasLimit, link) =
             helperConfig.activeNetworkConfig();
 
         vm.deal(PLAYER, STARTING_USER_BALANCE);
