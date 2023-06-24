@@ -34,7 +34,7 @@ contract RaffleTest is Test {
         (raffle, helperConfig) = deployer.run();
 
         // Deconstructing properties from our active config...
-        (entranceFee, interval, vrfCoordinator, gasLane, subscriptionId, callbackGasLimit, link) =
+        (entranceFee, interval, vrfCoordinator, gasLane, subscriptionId, callbackGasLimit, link,) =
             helperConfig.activeNetworkConfig();
 
         vm.deal(PLAYER, STARTING_USER_BALANCE);
